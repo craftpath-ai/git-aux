@@ -16,7 +16,16 @@ const app = await createApp({
   builtPageDirectory: existsSync(builtPageDirectory) ? builtPageDirectory : undefined,
 })
 
-app.listen(PORT, HOST, () => {
+app.listen(PORT, HOST, (error) => {
+  if (error) {
+    const isPortTaken = (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
+    console.error(
+      isPortTaken
+        ? `git-aux could not start: port ${PORT} is already in use. Is git-aux already running?`
+        : `git-aux could not start: ${error.message}`,
+    )
+    process.exit(1)
+  }
   console.log(`git-aux server: http://localhost:${PORT}`)
   console.log(`settings and clips: ${dataDirectory}`)
 })
