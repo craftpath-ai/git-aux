@@ -21,13 +21,15 @@ const GITHUB_EVENT_KIND_ACTIONS: Record<GithubEventKind, string> = {
 
 type Props = {
   settings: Settings
-  clipFileNames: string[]
+  // null while the clip list is still loading, or if that load failed.
+  clipFileNames: string[] | null
   onSettingsSaved: (settings: Settings) => void
   onTestEvent: (event: GithubEvent) => void
 }
 
 export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestEvent }: Props) {
   const { isBusy, errorMessage, runAction } = useServerAction()
+  const knownClipFileNames = clipFileNames ?? []
 
   // The "add a rule" form.
   const [newRuleGithubLogin, setNewRuleGithubLogin] = useState('')
@@ -118,18 +120,18 @@ export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestE
           onChange={(event) => setNewRuleClipFileName(event.target.value)}
         >
           <option value="">choose a clip</option>
-          {clipFileNames.map((clipFileName) => (
+          {knownClipFileNames.map((clipFileName) => (
             <option key={clipFileName} value={clipFileName}>
               {clipFileName}
             </option>
           ))}
         </select>
-        <button type="submit" disabled={isBusy || clipFileNames.length === 0}>
+        <button type="submit" disabled={isBusy || knownClipFileNames.length === 0}>
           add rule
         </button>
       </form>
       <p className="settings-page__hint">
-        {clipFileNames.length === 0
+        {knownClipFileNames.length === 0
           ? 'Upload a clip first, then add a rule for it.'
           : '"who" is a GitHub username. Leave it empty for a rule that covers anyone.'}
       </p>
@@ -152,11 +154,14 @@ export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestE
                     value={rule.clipFileName}
                     onChange={(event) => handleChangeRuleClip(rule.id, event.target.value)}
                   >
-                    {/* Keeps the rule readable if its file was removed from the media folder by hand. */}
-                    {!clipFileNames.includes(rule.clipFileName) && (
-                      <option value={rule.clipFileName}>{rule.clipFileName} (missing)</option>
+                    {/* Keeps the rule readable if its file was removed from the media folder by hand.
+                        A list that has not loaded yet is not proof the file is missing. */}
+                    {!knownClipFileNames.includes(rule.clipFileName) && (
+                      <option value={rule.clipFileName}>
+                        {clipFileNames === null ? rule.clipFileName : `${rule.clipFileName} (missing)`}
+                      </option>
                     )}
-                    {clipFileNames.map((clipFileName) => (
+                    {knownClipFileNames.map((clipFileName) => (
                       <option key={clipFileName} value={clipFileName}>
                         {clipFileName}
                       </option>

@@ -14,7 +14,8 @@ type Props = {
 
 export function SettingsPage({ settings, onSettingsSaved, onTestEvent, onClose }: Props) {
   // Both sections need the clip list: one edits it, the other picks from it.
-  const [clipFileNames, setClipFileNames] = useState<string[]>([])
+  // null until a fetch succeeds. An empty array means the folder has no clips.
+  const [clipFileNames, setClipFileNames] = useState<string[] | null>(null)
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -22,6 +23,12 @@ export function SettingsPage({ settings, onSettingsSaved, onTestEvent, onClose }
       .then(setClipFileNames)
       .catch((error: Error) => setLoadErrorMessage(error.message))
   }, [])
+
+  function handleClipFileNamesChanged(nextClipFileNames: string[]) {
+    setClipFileNames(nextClipFileNames)
+    // Uploading or deleting reloads the list, so a failed first load is no longer the current error.
+    setLoadErrorMessage(null)
+  }
 
   return (
     <main className="settings-page">
@@ -36,7 +43,10 @@ export function SettingsPage({ settings, onSettingsSaved, onTestEvent, onClose }
         </p>
       )}
 
-      <ClipsSection clipFileNames={clipFileNames} onClipFileNamesChanged={setClipFileNames} />
+      <ClipsSection
+        clipFileNames={clipFileNames ?? []}
+        onClipFileNamesChanged={handleClipFileNamesChanged}
+      />
       <RulesSection
         settings={settings}
         clipFileNames={clipFileNames}

@@ -66,7 +66,13 @@ export function ClipsSection({ clipFileNames, onClipFileNamesChanged }: Props) {
           event.preventDefault()
           setIsFileDraggedOver(true)
         }}
-        onDragLeave={() => setIsFileDraggedOver(false)}
+        onDragLeave={(event) => {
+          // Moving onto a child of this zone also fires dragleave, which would flicker the highlight.
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+            return
+          }
+          setIsFileDraggedOver(false)
+        }}
         onDrop={(event) => {
           event.preventDefault()
           setIsFileDraggedOver(false)
