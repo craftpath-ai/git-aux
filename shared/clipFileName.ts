@@ -14,14 +14,25 @@ export function isValidClipFileName(fileName: string): boolean {
 }
 
 export function hasAllowedClipExtension(fileName: string): boolean {
+  return allowedClipExtension(fileName) !== ''
+}
+
+// The matched suffix, keeping its original letter case, or '' when the name is not a clip.
+function allowedClipExtension(fileName: string): string {
   const lowerCaseFileName = fileName.toLowerCase()
-  return ALLOWED_CLIP_EXTENSIONS.some((extension) => lowerCaseFileName.endsWith(extension))
+  const extension = ALLOWED_CLIP_EXTENSIONS.find((candidate) => lowerCaseFileName.endsWith(candidate))
+  if (extension === undefined) return ''
+  return fileName.slice(-extension.length)
 }
 
 // Turns a name like "Air Horn (final).mp3" into "Air Horn -final-.mp3" before upload.
 export function cleanClipFileName(fileName: string): string {
-  return fileName
-    .replace(/[^A-Za-z0-9 ._-]/g, '-')
-    .slice(-MAX_CLIP_FILE_NAME_LENGTH)
-    .replace(/^[^A-Za-z0-9]+/, '')
+  const cleaned = fileName.replace(/[^A-Za-z0-9 ._-]/g, '-').slice(-MAX_CLIP_FILE_NAME_LENGTH)
+  const extension = allowedClipExtension(cleaned)
+  // Strip leading dashes and dots from the base name only. Doing it on the whole name
+  // would also eat the extension dot when the title has no Latin letters ("歌曲.mp3").
+  const baseName = cleaned.slice(0, cleaned.length - extension.length).replace(/^[^A-Za-z0-9]+/, '')
+  if (baseName !== '') return `${baseName}${extension}`
+  if (extension === '') return ''
+  return `clip${extension}`
 }

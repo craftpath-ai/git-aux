@@ -14,14 +14,18 @@ type Props = {
 
 export function SettingsPage({ settings, onSettingsSaved, onTestEvent, onClose }: Props) {
   // Both sections need the clip list: one edits it, the other picks from it.
-  const [clipFileNames, setClipFileNames] = useState<string[]>([])
+  // null until the list has loaded, so rules are not shown as "missing" their clip meanwhile.
+  const [clipFileNames, setClipFileNames] = useState<string[] | null>(null)
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null)
 
-  useEffect(() => {
+  function loadClipFileNames() {
+    setLoadErrorMessage(null)
     fetchClipFileNames()
       .then(setClipFileNames)
       .catch((error: Error) => setLoadErrorMessage(error.message))
-  }, [])
+  }
+
+  useEffect(loadClipFileNames, [])
 
   return (
     <main className="settings-page">
@@ -32,17 +36,23 @@ export function SettingsPage({ settings, onSettingsSaved, onTestEvent, onClose }
 
       {loadErrorMessage && (
         <p className="settings-page__error" role="alert">
-          {loadErrorMessage}
+          {loadErrorMessage} <button onClick={loadClipFileNames}>try again</button>
         </p>
       )}
 
-      <ClipsSection clipFileNames={clipFileNames} onClipFileNamesChanged={setClipFileNames} />
-      <RulesSection
-        settings={settings}
-        clipFileNames={clipFileNames}
-        onSettingsSaved={onSettingsSaved}
-        onTestEvent={onTestEvent}
-      />
+      {clipFileNames === null ? (
+        !loadErrorMessage && <p className="settings-page__empty">loading clips...</p>
+      ) : (
+        <>
+          <ClipsSection clipFileNames={clipFileNames} onClipFileNamesChanged={setClipFileNames} />
+          <RulesSection
+            settings={settings}
+            clipFileNames={clipFileNames}
+            onSettingsSaved={onSettingsSaved}
+            onTestEvent={onTestEvent}
+          />
+        </>
+      )}
     </main>
   )
 }
