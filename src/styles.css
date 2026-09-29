@@ -3,6 +3,9 @@
   --text: #f2f2f2;
   --text-dim: #8a8a8a;
   --accent: #7cff6b;
+  /* Doto is for the huge text only. It is hard to read at small sizes. */
+  --font-display: 'Doto', monospace;
+  --font-body: 'Pixelify Sans', monospace;
 }
 
 * {
@@ -19,8 +22,8 @@ body,
 body {
   background: var(--background);
   color: var(--text);
-  font-family: 'Doto', monospace;
-  font-weight: 900;
+  font-family: var(--font-body);
+  font-weight: 400;
   overflow: hidden;
 }
 
@@ -45,6 +48,8 @@ button {
 }
 
 .start-screen__title {
+  font-family: var(--font-display);
+  font-weight: 900;
   font-size: 14vw;
   line-height: 1;
   color: var(--accent);
@@ -66,6 +71,8 @@ button {
 }
 
 .idle-screen__title {
+  font-family: var(--font-display);
+  font-weight: 900;
   margin: 0;
   font-size: 10vw;
   line-height: 1;
@@ -156,6 +163,8 @@ button {
 }
 
 .celebration-screen__login {
+  font-family: var(--font-display);
+  font-weight: 900;
   font-size: 9vw;
   line-height: 1;
   overflow-wrap: anywhere;
@@ -191,6 +200,7 @@ button {
 
 .settings-page__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -198,6 +208,8 @@ button {
 
 .settings-page h1 {
   margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
   font-size: 56px;
   line-height: 1;
   color: var(--accent);
@@ -206,10 +218,19 @@ button {
 .settings-page h2 {
   margin: 48px 0 8px;
   font-size: 32px;
+  font-weight: 700;
+}
+
+.settings-page h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .settings-page button,
 .settings-page__upload,
+.settings-page__play-button,
 .settings-page input[type='text'],
 .settings-page select {
   padding: 8px 14px;
@@ -217,10 +238,12 @@ button {
   color: var(--text);
   background: var(--background);
   border: 2px solid var(--text-dim);
+  white-space: nowrap;
 }
 
 .settings-page button:hover:not(:disabled),
-.settings-page__upload:hover {
+.settings-page__upload:hover,
+.settings-page__play-button:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -247,10 +270,26 @@ button {
 }
 
 .settings-page__error {
-  margin: 24px 0 0;
+  margin: 16px 0;
   padding: 12px 16px;
   color: #ff8a80;
   border: 2px solid #ff8a80;
+}
+
+.settings-page__drop-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 16px;
+  color: var(--text-dim);
+  border: 2px dashed var(--text-dim);
+}
+
+.settings-page__drop-zone--dragged-over {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .settings-page__upload {
@@ -282,29 +321,43 @@ button {
 }
 
 .settings-page__name {
-  flex: 1 1 240px;
+  flex: 1 1 140px;
   overflow-wrap: anywhere;
 }
 
-.settings-page__list audio {
-  height: 36px;
+.settings-page__list select {
+  max-width: 100%;
 }
 
-.settings-page__list a {
-  color: var(--accent);
+/* "play", "stop" and "watch" share one width, so the clip names line up. */
+.settings-page__play-button {
+  width: 84px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.settings-page__rule-group {
+  margin-top: 28px;
+}
+
+.settings-page__rule-group .settings-page__list {
+  margin-top: 4px;
 }
 
 .settings-page__rule-form {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
   margin: 24px 0 12px;
+  padding: 16px;
+  border: 2px solid #333;
 }
 
-.settings-page__rule-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--text-dim);
+.settings-page__rule-form input[type='text'] {
+  width: 180px;
+}
+
+.settings-page__rule-form select {
+  max-width: 100%;
 }
