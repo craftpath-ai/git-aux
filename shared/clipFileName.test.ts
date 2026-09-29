@@ -33,4 +33,13 @@ describe('cleanClipFileName', () => {
     const cleaned = cleanClipFileName(`${'a'.repeat(200)}.mp3`)
     expect(isValidClipFileName(cleaned)).toBe(true)
   })
+
+  it('keeps a usable extension when the title has no latin letters', () => {
+    expect(cleanClipFileName('歌曲.mp3')).toBe('clip.mp3')
+    expect(cleanClipFileName('---.mp3')).toBe('clip.mp3')
+    expect(cleanClipFileName('歌曲 remix.mp3')).toBe('remix.mp3')
+    expect(isValidClipFileName(cleanClipFileName('привет.MP3'))).toBe(true)
+    expect(isValidClipFileName(cleanClipFileName('أغنية.ogg'))).toBe(true)
+    expect(isValidClipFileName(cleanClipFileName('🎉.mp4'))).toBe(true)
+  })
 })

@@ -66,7 +66,12 @@ export function ClipsSection({ clipFileNames, onClipFileNamesChanged }: Props) {
           event.preventDefault()
           setIsFileDraggedOver(true)
         }}
-        onDragLeave={() => setIsFileDraggedOver(false)}
+        onDragLeave={(event) => {
+          // Moving onto the text or button inside the area also fires this event.
+          // Only moving out of the whole area should turn the highlight off.
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+          setIsFileDraggedOver(false)
+        }}
         onDrop={(event) => {
           event.preventDefault()
           setIsFileDraggedOver(false)
