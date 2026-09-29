@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
+import { GITHUB_EVENT_KIND_LABELS } from '../../shared/settings'
 import { MAX_CLIP_SECONDS, type Clip } from './clips'
-import type { MergeEvent } from './mergeEvent'
+import type { GithubEvent } from './githubEvent'
 
 // How long the card stays up when the clip file is missing or unplayable.
 const FAILED_CLIP_SECONDS = 5
 
 type Props = {
-  merge: MergeEvent
+  event: GithubEvent
   clip: Clip
-  mergesWaitingCount: number
+  eventsWaitingCount: number
   onFinished: () => void
 }
 
-export function CelebrationScreen({ merge, clip, mergesWaitingCount, onFinished }: Props) {
+export function CelebrationScreen({ event, clip, eventsWaitingCount, onFinished }: Props) {
   const [hasClipFailed, setHasClipFailed] = useState(false)
-  const clipUrl = `/media/${clip.fileName}`
 
   useEffect(() => {
     const secondsOnScreen = hasClipFailed ? FAILED_CLIP_SECONDS : MAX_CLIP_SECONDS
@@ -24,7 +24,7 @@ export function CelebrationScreen({ merge, clip, mergesWaitingCount, onFinished 
   }, [hasClipFailed])
 
   function handleClipError() {
-    console.error(`git-aux: could not play ${clipUrl}`)
+    console.error(`git-aux: could not play ${clip.url}`)
     setHasClipFailed(true)
   }
 
@@ -33,7 +33,7 @@ export function CelebrationScreen({ merge, clip, mergesWaitingCount, onFinished 
       {clip.kind === 'video' && !hasClipFailed && (
         <video
           className="celebration-screen__video"
-          src={clipUrl}
+          src={clip.url}
           autoPlay
           playsInline
           onEnded={onFinished}
@@ -41,21 +41,21 @@ export function CelebrationScreen({ merge, clip, mergesWaitingCount, onFinished 
         />
       )}
       {clip.kind === 'audio' && !hasClipFailed && (
-        <audio src={clipUrl} autoPlay onEnded={onFinished} onError={handleClipError} />
+        <audio src={clip.url} autoPlay onEnded={onFinished} onError={handleClipError} />
       )}
       {(clip.kind === 'audio' || hasClipFailed) && <div className="celebration-screen__dots" />}
 
       <div className="celebration-screen__text">
-        <p className="celebration-screen__label">merged</p>
-        <h1 className="celebration-screen__login">{merge.githubLogin}</h1>
-        <p className="celebration-screen__title">{merge.pullRequestTitle}</p>
+        <p className="celebration-screen__label">{GITHUB_EVENT_KIND_LABELS[event.eventKind]}</p>
+        <h1 className="celebration-screen__login">{event.githubLogin}</h1>
+        <p className="celebration-screen__title">{event.pullRequestTitle}</p>
         <p className="celebration-screen__repository">
-          {merge.repositoryName} #{merge.pullRequestNumber}
+          {event.repositoryName} #{event.pullRequestNumber}
         </p>
       </div>
 
-      {mergesWaitingCount > 0 && (
-        <p className="celebration-screen__waiting">+{mergesWaitingCount} more</p>
+      {eventsWaitingCount > 0 && (
+        <p className="celebration-screen__waiting">+{eventsWaitingCount} more</p>
       )}
     </main>
   )

@@ -1,11 +1,13 @@
 # git-aux
 soundtrack for your github org
 
-Plays a video and sound on a shared screen every time someone merges a pull request.
+Plays a video or sound on a shared screen when things happen on GitHub:
+a pull request is merged, opened, or approved, or its checks fail.
 
 ## Status
 
-Early. The celebration screen works with test merges. GitHub is not connected yet.
+Early. Clips, rules, and the celebration screen work with test events.
+GitHub is not connected yet.
 
 ## Run it locally
 
@@ -14,24 +16,35 @@ pnpm install
 pnpm dev
 ```
 
-Open the address it prints, click once to turn sound on, then use the test buttons.
+Open the page address it prints (http://localhost:5173), click once to turn sound on,
+then open **settings**.
 
-## Clips
+To run it the way a real screen would:
 
-Clips live in `public/media/`. `src/clips.json` says who gets which clip:
-
-```json
-{
-  "defaultClipFileName": "default.mp3",
-  "clipFileNameByGithubLogin": {
-    "octocat": "sample.mp4"
-  }
-}
+```sh
+pnpm build
+pnpm start
 ```
 
-- `.mp4` and `.webm` files play as video. Anything else plays as sound over a default card.
-- Clips are cut off after 15 seconds.
-- Only add clips you have the right to share.
+Then open http://localhost:4242.
+
+## Clips and rules
+
+On the settings page you can:
+
+- Upload sound files (`.mp3`, `.wav`, `.ogg`, `.m4a`) and video files (`.mp4`, `.webm`), up to 50 MB each.
+- Add rules that say which clip plays for which event, for one person or for anyone.
+- Press **test** on a rule to hear it.
+
+A rule for one person beats a rule for anyone. When no rule matches, the built-in chime plays.
+Clips are cut off after 15 seconds. Only upload clips you have the right to use.
+
+## Where your data lives
+
+Settings and uploaded clips are saved in `~/.git-aux/` on your machine, outside this repo.
+Set `GIT_AUX_DATA_DIRECTORY` to use a different folder.
+
+The server only accepts connections from the machine it runs on.
 
 ## Checks
 
