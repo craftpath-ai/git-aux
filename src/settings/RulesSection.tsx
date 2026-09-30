@@ -5,7 +5,6 @@ import {
   type GithubEventKind,
   type Settings,
 } from '../../shared/settings'
-import { saveSettings } from '../api'
 import type { GithubEvent } from '../celebration/githubEvent'
 import { groupClipRulesByPerson } from './ruleGroups'
 import { makeTestEvent } from './testEvent'
@@ -25,7 +24,8 @@ type Props = {
   // Members of the chosen GitHub organization. null means nobody is signed in or no
   // organization is chosen, so "who" falls back to a typed username.
   organizationMemberLogins: string[] | null
-  onSettingsSaved: (settings: Settings) => void
+  isSettingsSaveBusy: boolean
+  onSaveSettings: (update: (current: Settings) => Settings) => Promise<void>
   onTestEvent: (event: GithubEvent) => void
 }
 
@@ -33,20 +33,23 @@ export function RulesSection({
   settings,
   clipFileNames,
   organizationMemberLogins,
-  onSettingsSaved,
+  isSettingsSaveBusy,
+  onSaveSettings,
   onTestEvent,
 }: Props) {
-  const { isBusy, errorMessage, runAction } = useServerAction()
+  const { isBusy: isRuleActionBusy, errorMessage, runAction } = useServerAction()
+  // Also wait while the organization picker is saving the same file.
+  const isBusy = isRuleActionBusy || isSettingsSaveBusy
 
   // The "add a rule" form.
   const [newRuleGithubLogin, setNewRuleGithubLogin] = useState('')
   const [newRuleEventKind, setNewRuleEventKind] = useState<GithubEventKind>('pull_request_merged')
   const [newRuleClipFileName, setNewRuleClipFileName] = useState('')
 
-  function saveClipRules(clipRules: ClipRule[]) {
-    runAction(async () => {
-      onSettingsSaved(await saveSettings({ ...settings, clipRules }))
-    })
+  function saveClipRules(updateClipRules: (clipRules: ClipRule[]) => ClipRule[]) {
+    runAction(() =>
+      onSaveSettings((current) => ({ ...current, clipRules: updateClipRules(current.clipRules) })),
+    )
   }
 
   function handleAddRule() {
@@ -57,14 +60,16 @@ export function RulesSection({
       githubLogin,
       clipFileName: newRuleClipFileName,
     }
-    // A new rule for the same person and event replaces the old one.
-    const otherRules = settings.clipRules.filter(
-      (rule) =>
-        rule.eventKind !== newRule.eventKind ||
-        rule.githubLogin?.toLowerCase() !== newRule.githubLogin?.toLowerCase(),
-    )
     runAction(async () => {
-      onSettingsSaved(await saveSettings({ ...settings, clipRules: [...otherRules, newRule] }))
+      await onSaveSettings((current) => {
+        // A new rule for the same person and event replaces the old one.
+        const otherRules = current.clipRules.filter(
+          (rule) =>
+            rule.eventKind !== newRule.eventKind ||
+            rule.githubLogin?.toLowerCase() !== newRule.githubLogin?.toLowerCase(),
+        )
+        return { ...current, clipRules: [...otherRules, newRule] }
+      })
       setNewRuleGithubLogin('')
     })
   }
@@ -77,13 +82,13 @@ export function RulesSection({
   }
 
   function handleChangeRuleClip(ruleId: string, clipFileName: string) {
-    saveClipRules(
-      settings.clipRules.map((rule) => (rule.id === ruleId ? { ...rule, clipFileName } : rule)),
+    saveClipRules((clipRules) =>
+      clipRules.map((rule) => (rule.id === ruleId ? { ...rule, clipFileName } : rule)),
     )
   }
 
   function handleRemoveRule(ruleId: string) {
-    saveClipRules(settings.clipRules.filter((rule) => rule.id !== ruleId))
+    saveClipRules((clipRules) => clipRules.filter((rule) => rule.id !== ruleId))
   }
 
   return (
