@@ -7,6 +7,10 @@ import { readSettings, writeSettings } from './settingsFile'
 
 const MAX_CLIP_UPLOAD_SIZE = '50mb'
 
+// Names a browser on this machine uses to reach the server, without the port.
+// "[::1]" is 127.0.0.1's IPv6 twin; Express keeps its square brackets.
+const LOCAL_HOST_NAMES = ['localhost', '127.0.0.1', '[::1]']
+
 type AppOptions = {
   // Folder holding settings.json and the media folder.
   dataDirectory: string
@@ -24,6 +28,18 @@ export async function createApp({ dataDirectory, builtPageDirectory }: AppOption
   }
 
   const app = express()
+
+  // Blocks "DNS rebinding": a website can point its own name at 127.0.0.1, and the
+  // browser would then let that site's page talk to this server. Such requests still
+  // carry the website's name in the Host header, so only local names are let through.
+  app.use((request, response, next) => {
+    // Host names are case-insensitive: "LOCALHOST" is the same as "localhost".
+    if (!LOCAL_HOST_NAMES.includes(request.hostname?.toLowerCase())) {
+      response.status(403).json({ error: 'git-aux only answers requests addressed to localhost.' })
+      return
+    }
+    next()
+  })
 
   app.get('/api/settings', async (_request, response) => {
     response.json(await readSettings(dataDirectory))

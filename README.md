@@ -44,7 +44,9 @@ Clips are cut off after 15 seconds. Only upload clips you have the right to use.
 Settings and uploaded clips are saved in `~/.git-aux/` on your machine, outside this repo.
 Set `GIT_AUX_DATA_DIRECTORY` to use a different folder.
 
-The server only accepts connections from the machine it runs on.
+The server only accepts connections from the machine it runs on, and only answers
+requests addressed to `localhost` or `127.0.0.1`. That second check stops other
+websites open in your browser from reaching it.
 
 ## Checks
 
