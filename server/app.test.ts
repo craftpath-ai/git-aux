@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import http from 'node:http'
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
@@ -135,5 +136,33 @@ describe('settings', () => {
       body: '{not json',
     })
     expect(response.status).toBe(400)
+  })
+})
+
+describe('host check', () => {
+  // fetch cannot change the Host header, so these requests use node:http directly.
+  function statusForHostHeader(hostHeader: string): Promise<number> {
+    const { port } = server.address() as AddressInfo
+    return new Promise((resolve, reject) => {
+      http
+        .get({ host: '127.0.0.1', port, path: '/api/settings', headers: { host: hostHeader } }, (response) => {
+          response.resume()
+          resolve(response.statusCode ?? 0)
+        })
+        .on('error', reject)
+    })
+  }
+
+  it('answers requests addressed to this machine', async () => {
+    const { port } = server.address() as AddressInfo
+    for (const hostHeader of [`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`, 'LOCALHOST']) {
+      expect(await statusForHostHeader(hostHeader)).toBe(200)
+    }
+  })
+
+  it('refuses requests addressed to any other name', async () => {
+    for (const hostHeader of ['evil.example', 'localhost.evil.example', '192.168.1.20:4242']) {
+      expect(await statusForHostHeader(hostHeader)).toBe(403)
+    }
   })
 })
