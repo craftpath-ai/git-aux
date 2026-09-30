@@ -4,6 +4,7 @@ import type { Settings } from '../../shared/settings'
 import {
   fetchGithubOrganizationLogins,
   fetchGithubStatus,
+  saveSettings,
   signOutOfGithub,
   startGithubSignIn,
 } from '../api'
@@ -16,8 +17,7 @@ type Props = {
   githubStatus: GithubStatus
   onGithubStatusChanged: (githubStatus: GithubStatus) => void
   settings: Settings
-  isSettingsSaveBusy: boolean
-  onSaveSettings: (update: (current: Settings) => Settings) => Promise<void>
+  onSettingsSaved: (settings: Settings) => void
   // Why the member list for the "who" dropdown could not load, if it failed.
   memberLoadErrorMessage: string | null
 }
@@ -26,8 +26,7 @@ export function GithubSection({
   githubStatus,
   onGithubStatusChanged,
   settings,
-  isSettingsSaveBusy,
-  onSaveSettings,
+  onSettingsSaved,
   memberLoadErrorMessage,
 }: Props) {
   const { isBusy, errorMessage, runAction } = useServerAction()
@@ -61,12 +60,11 @@ export function GithubSection({
   }, [signedInGithubLogin])
 
   function handleChooseOrganization(githubOrganizationLogin: string) {
-    runAction(() =>
-      onSaveSettings((current) => ({
-        ...current,
-        githubOrganizationLogin: githubOrganizationLogin || null,
-      })),
-    )
+    runAction(async () => {
+      onSettingsSaved(
+        await saveSettings({ ...settings, githubOrganizationLogin: githubOrganizationLogin || null }),
+      )
+    })
   }
 
   return (
@@ -154,7 +152,7 @@ export function GithubSection({
             <label className="settings-page__organization">
               organization
               <select
-                disabled={isBusy || isSettingsSaveBusy}
+                disabled={isBusy}
                 value={settings.githubOrganizationLogin ?? ''}
                 onChange={(event) => handleChooseOrganization(event.target.value)}
               >
