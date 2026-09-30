@@ -7,6 +7,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Settings } from '../shared/settings'
 import { createApp } from './app'
+import { createGithubConnection } from './githubConnection'
 
 let dataDirectory: string
 let server: Server
@@ -14,7 +15,9 @@ let serverUrl: string
 
 beforeEach(async () => {
   dataDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'git-aux-test-'))
-  const app = await createApp({ dataDirectory })
+  // No client ID, so these tests never depend on the shell or reach the real GitHub.
+  const githubConnection = createGithubConnection({ dataDirectory, appConfig: { clientId: '', appSlug: 'git-aux' } })
+  const app = await createApp({ dataDirectory, githubConnection })
   server = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => server.once('listening', resolve))
   serverUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -35,13 +38,14 @@ function uploadClip(fileName: string, contents = 'fake mp3 bytes') {
 
 function saveSettings(settings: unknown) {
   return fetch(`${serverUrl}/api/settings`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   })
 }
 
 const settingsUsingAirhorn: Settings = {
+  githubOrganizationLogin: null,
   clipRules: [
     { id: 'rule-1', eventKind: 'pull_request_merged', githubLogin: 'octocat', clipFileName: 'airhorn.mp3' },
   ],
@@ -108,7 +112,7 @@ describe('clips', () => {
 describe('settings', () => {
   it('starts with no rules', async () => {
     const response = await fetch(`${serverUrl}/api/settings`)
-    expect(await response.json()).toEqual({ clipRules: [] })
+    expect(await response.json()).toEqual({ githubOrganizationLogin: null, clipRules: [] })
   })
 
   it('saves settings and returns them later', async () => {
@@ -129,9 +133,23 @@ describe('settings', () => {
     expect((await saveSettings({ rules: [] })).status).toBe(400)
   })
 
+  it('changes only the fields sent, so two changes at once both stick', async () => {
+    await uploadClip('airhorn.mp3')
+    await Promise.all([
+      saveSettings({ githubOrganizationLogin: 'craftpath-ai' }),
+      saveSettings({ clipRules: settingsUsingAirhorn.clipRules }),
+    ])
+
+    const response = await fetch(`${serverUrl}/api/settings`)
+    expect(await response.json()).toEqual({
+      githubOrganizationLogin: 'craftpath-ai',
+      clipRules: settingsUsingAirhorn.clipRules,
+    })
+  })
+
   it('refuses a body that is not JSON', async () => {
     const response = await fetch(`${serverUrl}/api/settings`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: '{not json',
     })
@@ -164,5 +182,18 @@ describe('host check', () => {
     for (const hostHeader of ['evil.example', 'localhost.evil.example', '192.168.1.20:4242']) {
       expect(await statusForHostHeader(hostHeader)).toBe(403)
     }
+  })
+})
+
+describe('github routes', () => {
+  it('reports sign-in as off when no client ID is set up', async () => {
+    const response = await fetch(`${serverUrl}/api/github/status`)
+    expect(await response.json()).toMatchObject({ isSignInAvailable: false, signedInGithubLogin: null })
+  })
+
+  it('asks for an organization before listing members', async () => {
+    const response = await fetch(`${serverUrl}/api/github/organization-members`)
+    expect(response.status).toBe(409)
+    expect((await response.json()).error).toContain('organization')
   })
 })

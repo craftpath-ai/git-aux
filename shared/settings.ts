@@ -26,13 +26,18 @@ export type ClipRule = {
 }
 
 export type Settings = {
+  // The GitHub organization this screen follows, like "craftpath-ai".
+  // null until someone picks one after signing in to GitHub.
+  githubOrganizationLogin: string | null
   clipRules: ClipRule[]
 }
 
-export const EMPTY_SETTINGS: Settings = { clipRules: [] }
+export const EMPTY_SETTINGS: Settings = { githubOrganizationLogin: null, clipRules: [] }
 
 // Letters, numbers and dashes, plus brackets for bot accounts like "dependabot[bot]".
 const GITHUB_LOGIN_PATTERN = /^[A-Za-z0-9[\]-]{1,50}$/
+// Organization names are letters, numbers and dashes, at most 39 characters.
+export const GITHUB_ORGANIZATION_LOGIN_PATTERN = /^[A-Za-z0-9-]{1,39}$/
 
 // Checks settings that came from outside the program (a request or the file on disk).
 // Throws an Error with a plain-English message when something is wrong.
@@ -67,7 +72,17 @@ export function parseSettings(value: unknown): Settings {
     return { id, eventKind: eventKind as GithubEventKind, githubLogin, clipFileName }
   })
 
-  return { clipRules }
+  // Settings files saved before GitHub sign-in existed have no organization.
+  const githubOrganizationLogin = value.githubOrganizationLogin ?? null
+  if (
+    githubOrganizationLogin !== null &&
+    (typeof githubOrganizationLogin !== 'string' ||
+      !GITHUB_ORGANIZATION_LOGIN_PATTERN.test(githubOrganizationLogin))
+  ) {
+    throw new Error('The GitHub organization name is not valid.')
+  }
+
+  return { githubOrganizationLogin, clipRules }
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
