@@ -5,7 +5,7 @@ import {
   type GithubEventKind,
   type Settings,
 } from '../../shared/settings'
-import { saveSettings } from '../api'
+import { updateSettings } from '../api'
 import type { GithubEvent } from '../celebration/githubEvent'
 import { groupClipRulesByPerson } from './ruleGroups'
 import { makeTestEvent } from './testEvent'
@@ -45,7 +45,7 @@ export function RulesSection({
 
   function saveClipRules(clipRules: ClipRule[]) {
     runAction(async () => {
-      onSettingsSaved(await saveSettings({ ...settings, clipRules }))
+      onSettingsSaved(await updateSettings({ clipRules }))
     })
   }
 
@@ -64,7 +64,7 @@ export function RulesSection({
         rule.githubLogin?.toLowerCase() !== newRule.githubLogin?.toLowerCase(),
     )
     runAction(async () => {
-      onSettingsSaved(await saveSettings({ ...settings, clipRules: [...otherRules, newRule] }))
+      onSettingsSaved(await updateSettings({ clipRules: [...otherRules, newRule] }))
       setNewRuleGithubLogin('')
     })
   }

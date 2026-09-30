@@ -4,7 +4,7 @@ import type { Settings } from '../../shared/settings'
 import {
   fetchGithubOrganizationLogins,
   fetchGithubStatus,
-  saveSettings,
+  updateSettings,
   signOutOfGithub,
   startGithubSignIn,
 } from '../api'
@@ -62,7 +62,7 @@ export function GithubSection({
   function handleChooseOrganization(githubOrganizationLogin: string) {
     runAction(async () => {
       onSettingsSaved(
-        await saveSettings({ ...settings, githubOrganizationLogin: githubOrganizationLogin || null }),
+        await updateSettings({ githubOrganizationLogin: githubOrganizationLogin || null }),
       )
     })
   }

@@ -28,11 +28,13 @@ export async function fetchSettings(): Promise<Settings> {
   return (await request('/api/settings')).json()
 }
 
-export async function saveSettings(settings: Settings): Promise<Settings> {
+// Sends only the fields that changed. The server merges them into the saved settings
+// and answers with the full result.
+export async function updateSettings(changedFields: Partial<Settings>): Promise<Settings> {
   const response = await request('/api/settings', {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(settings),
+    body: JSON.stringify(changedFields),
   })
   return response.json()
 }

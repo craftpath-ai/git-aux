@@ -38,7 +38,7 @@ function uploadClip(fileName: string, contents = 'fake mp3 bytes') {
 
 function saveSettings(settings: unknown) {
   return fetch(`${serverUrl}/api/settings`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   })
@@ -133,9 +133,23 @@ describe('settings', () => {
     expect((await saveSettings({ rules: [] })).status).toBe(400)
   })
 
+  it('changes only the fields sent, so two changes at once both stick', async () => {
+    await uploadClip('airhorn.mp3')
+    await Promise.all([
+      saveSettings({ githubOrganizationLogin: 'craftpath-ai' }),
+      saveSettings({ clipRules: settingsUsingAirhorn.clipRules }),
+    ])
+
+    const response = await fetch(`${serverUrl}/api/settings`)
+    expect(await response.json()).toEqual({
+      githubOrganizationLogin: 'craftpath-ai',
+      clipRules: settingsUsingAirhorn.clipRules,
+    })
+  })
+
   it('refuses a body that is not JSON', async () => {
     const response = await fetch(`${serverUrl}/api/settings`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: '{not json',
     })

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import { isValidClipFileName } from '../shared/clipFileName'
-import { parseSettings } from '../shared/settings'
+import { parseSettings, type Settings } from '../shared/settings'
 import { githubAppConfigFromEnvironment } from './githubAppConfig'
 import { createGithubConnection, GithubConnectionError, type GithubConnection } from './githubConnection'
 import { readSettings, writeSettings } from './settingsFile'
@@ -56,14 +56,32 @@ export async function createApp({
     response.json(await readSettings(dataDirectory))
   })
 
-  app.put('/api/settings', express.json(), async (request, response) => {
-    let settings
-    try {
-      settings = parseSettings(request.body)
-    } catch (error) {
-      response.status(400).json({ error: (error as Error).message })
-      return
-    }
+  // Settings changes and clip deletes read settings.json, then write it. Running them one
+  // at a time stops two of them from reading the same old file and undoing each other.
+  let previousSettingsChange: Promise<unknown> = Promise.resolve()
+  function oneSettingsChangeAtATime<Result>(change: () => Promise<Result>): Promise<Result> {
+    const result = previousSettingsChange.then(change, change)
+    previousSettingsChange = result.catch(() => {})
+    return result
+  }
+
+  // Changes only the fields sent, so the page's sections cannot overwrite each other's
+  // changes. For example, picking an organization leaves the rules alone.
+  app.patch('/api/settings', express.json(), (request, response) =>
+    oneSettingsChangeAtATime(async () => {
+      const changedFields = pickSettingsFields(request.body)
+      if (Object.keys(changedFields).length === 0) {
+        response.status(400).json({ error: 'Nothing to change: send githubOrganizationLogin or clipRules.' })
+        return
+      }
+
+      let settings
+      try {
+        settings = parseSettings({ ...(await readSettings(dataDirectory)), ...changedFields })
+      } catch (error) {
+        response.status(400).json({ error: (error as Error).message })
+        return
+      }
 
     const clipFileNames = await listClipFileNames()
     const ruleWithMissingClip = settings.clipRules.find(
@@ -76,9 +94,10 @@ export async function createApp({
       return
     }
 
-    await writeSettings(dataDirectory, settings)
-    response.json(settings)
-  })
+      await writeSettings(dataDirectory, settings)
+      response.json(settings)
+    }),
+  )
 
   app.get('/api/clips', async (_request, response) => {
     response.json({ clipFileNames: await listClipFileNames() })
@@ -112,7 +131,8 @@ export async function createApp({
     },
   )
 
-  app.delete('/api/clips/:fileName', async (request, response) => {
+  app.delete('/api/clips/:fileName', (request, response) =>
+    oneSettingsChangeAtATime(async () => {
     const fileName = String(request.params.fileName)
     if (!(await listClipFileNames()).includes(fileName)) {
       response.status(404).json({ error: `There is no clip called "${fileName}".` })
@@ -129,7 +149,8 @@ export async function createApp({
 
     await fs.rm(path.join(mediaDirectory, fileName))
     response.status(204).end()
-  })
+    }),
+  )
 
   app.get('/api/github/status', async (_request, response) => {
     response.json(await githubConnection.getStatus())
@@ -193,4 +214,14 @@ export async function createApp({
   })
 
   return app
+}
+
+// Keeps only the settings fields that were sent. Anything else in the request is ignored.
+function pickSettingsFields(body: unknown): Partial<Record<keyof Settings, unknown>> {
+  if (typeof body !== 'object' || body === null) return {}
+  const changedFields: Partial<Record<keyof Settings, unknown>> = {}
+  for (const fieldName of ['githubOrganizationLogin', 'clipRules'] as const) {
+    if (fieldName in body) changedFields[fieldName] = (body as Record<string, unknown>)[fieldName]
+  }
+  return changedFields
 }
