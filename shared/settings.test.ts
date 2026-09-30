@@ -10,7 +10,20 @@ const validRule = {
 
 describe('parseSettings', () => {
   it('accepts valid settings', () => {
-    expect(parseSettings({ clipRules: [validRule] })).toEqual({ clipRules: [validRule] })
+    expect(parseSettings({ githubOrganizationLogin: 'craftpath-ai', clipRules: [validRule] })).toEqual({
+      githubOrganizationLogin: 'craftpath-ai',
+      clipRules: [validRule],
+    })
+  })
+
+  it('reads settings saved before the organization field existed', () => {
+    expect(parseSettings({ clipRules: [] }).githubOrganizationLogin).toBeNull()
+  })
+
+  it('refuses an organization name that is not valid', () => {
+    expect(() => parseSettings({ githubOrganizationLogin: '../x', clipRules: [] })).toThrow(
+      'organization',
+    )
   })
 
   it('accepts a rule for anyone', () => {
@@ -25,7 +38,7 @@ describe('parseSettings', () => {
 
   it('drops fields it does not know', () => {
     const settings = parseSettings({ clipRules: [{ ...validRule, extra: true }], other: 1 })
-    expect(settings).toEqual({ clipRules: [validRule] })
+    expect(settings).toEqual({ githubOrganizationLogin: null, clipRules: [validRule] })
   })
 
   it('rejects an unknown event', () => {

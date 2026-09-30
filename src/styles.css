@@ -361,3 +361,36 @@ button {
 .settings-page__rule-form select {
   max-width: 100%;
 }
+
+.settings-page a {
+  color: var(--accent);
+}
+
+.settings-page__signed-in,
+.settings-page__organization {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+
+.settings-page__signed-in strong {
+  color: var(--accent);
+}
+
+/* The code people type into github.com, big enough to read from across a room. */
+.settings-page__user-code {
+  margin: 8px 0 16px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 64px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.settings-page__not-member {
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--text-dim);
+}

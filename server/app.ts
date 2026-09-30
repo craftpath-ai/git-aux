@@ -3,6 +3,8 @@ import path from 'node:path'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import { isValidClipFileName } from '../shared/clipFileName'
 import { parseSettings } from '../shared/settings'
+import { githubAppConfigFromEnvironment } from './githubAppConfig'
+import { createGithubConnection, GithubConnectionError, type GithubConnection } from './githubConnection'
 import { readSettings, writeSettings } from './settingsFile'
 
 const MAX_CLIP_UPLOAD_SIZE = '50mb'
@@ -16,9 +18,18 @@ type AppOptions = {
   dataDirectory: string
   // Folder holding the built page (the output of "pnpm build"), if it should be served.
   builtPageDirectory?: string
+  // Tests pass one that talks to a fake GitHub.
+  githubConnection?: GithubConnection
 }
 
-export async function createApp({ dataDirectory, builtPageDirectory }: AppOptions) {
+export async function createApp({
+  dataDirectory,
+  builtPageDirectory,
+  githubConnection = createGithubConnection({
+    dataDirectory,
+    appConfig: githubAppConfigFromEnvironment(),
+  }),
+}: AppOptions) {
   const mediaDirectory = path.join(dataDirectory, 'media')
   await fs.mkdir(mediaDirectory, { recursive: true })
 
@@ -120,6 +131,36 @@ export async function createApp({ dataDirectory, builtPageDirectory }: AppOption
     response.status(204).end()
   })
 
+  app.get('/api/github/status', async (_request, response) => {
+    response.json(await githubConnection.getStatus())
+  })
+
+  app.post('/api/github/sign-in', async (_request, response) => {
+    await githubConnection.startSignIn()
+    response.json(await githubConnection.getStatus())
+  })
+
+  app.post('/api/github/sign-out', async (_request, response) => {
+    await githubConnection.signOut()
+    response.json(await githubConnection.getStatus())
+  })
+
+  app.get('/api/github/organizations', async (_request, response) => {
+    response.json({ organizationLogins: await githubConnection.listInstalledOrganizationLogins() })
+  })
+
+  // Members of the organization picked in settings, for the "who" dropdown.
+  app.get('/api/github/organization-members', async (_request, response) => {
+    const { githubOrganizationLogin } = await readSettings(dataDirectory)
+    if (!githubOrganizationLogin) {
+      response.status(409).json({ error: 'Pick a GitHub organization first.' })
+      return
+    }
+    response.json({
+      githubLogins: await githubConnection.listOrganizationMemberLogins(githubOrganizationLogin),
+    })
+  })
+
   app.use('/api', (_request, response) => {
     response.status(404).json({ error: 'Not found.' })
   })
@@ -131,6 +172,10 @@ export async function createApp({ dataDirectory, builtPageDirectory }: AppOption
   }
 
   app.use((error: Error & { status?: number; type?: string }, _request: Request, response: Response, _next: NextFunction) => {
+    if (error instanceof GithubConnectionError) {
+      response.status(error.status).json({ error: error.message })
+      return
+    }
     if (error.type === 'entity.too.large') {
       response.status(413).json({ error: `Files can be at most ${MAX_CLIP_UPLOAD_SIZE}.` })
       return

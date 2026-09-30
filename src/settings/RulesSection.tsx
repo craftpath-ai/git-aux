@@ -22,11 +22,20 @@ const GITHUB_EVENT_KIND_ACTIONS: Record<GithubEventKind, string> = {
 type Props = {
   settings: Settings
   clipFileNames: string[]
+  // Members of the chosen GitHub organization. null means nobody is signed in or no
+  // organization is chosen, so "who" falls back to a typed username.
+  organizationMemberLogins: string[] | null
   onSettingsSaved: (settings: Settings) => void
   onTestEvent: (event: GithubEvent) => void
 }
 
-export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestEvent }: Props) {
+export function RulesSection({
+  settings,
+  clipFileNames,
+  organizationMemberLogins,
+  onSettingsSaved,
+  onTestEvent,
+}: Props) {
   const { isBusy, errorMessage, runAction } = useServerAction()
 
   // The "add a rule" form.
@@ -58,6 +67,13 @@ export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestE
       onSettingsSaved(await saveSettings({ ...settings, clipRules: [...otherRules, newRule] }))
       setNewRuleGithubLogin('')
     })
+  }
+
+  function isOrganizationMember(githubLogin: string): boolean {
+    // GitHub usernames are case-insensitive.
+    return (organizationMemberLogins ?? []).some(
+      (memberLogin) => memberLogin.toLowerCase() === githubLogin.toLowerCase(),
+    )
   }
 
   function handleChangeRuleClip(ruleId: string, clipFileName: string) {
@@ -92,13 +108,28 @@ export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestE
         }}
       >
         <span>When</span>
-        <input
-          type="text"
-          aria-label="who (a GitHub username, or empty for anyone)"
-          placeholder="anyone"
-          value={newRuleGithubLogin}
-          onChange={(event) => setNewRuleGithubLogin(event.target.value)}
-        />
+        {organizationMemberLogins ? (
+          <select
+            aria-label="who"
+            value={newRuleGithubLogin}
+            onChange={(event) => setNewRuleGithubLogin(event.target.value)}
+          >
+            <option value="">anyone</option>
+            {organizationMemberLogins.map((memberLogin) => (
+              <option key={memberLogin} value={memberLogin}>
+                {memberLogin}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            aria-label="who (a GitHub username, or empty for anyone)"
+            placeholder="anyone"
+            value={newRuleGithubLogin}
+            onChange={(event) => setNewRuleGithubLogin(event.target.value)}
+          />
+        )}
         <select
           aria-label="event"
           value={newRuleEventKind}
@@ -131,7 +162,9 @@ export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestE
       <p className="settings-page__hint">
         {clipFileNames.length === 0
           ? 'Upload a clip first, then add a rule for it.'
-          : '"who" is a GitHub username. Leave it empty for a rule that covers anyone.'}
+          : organizationMemberLogins
+            ? 'Pick "anyone" for a rule that covers everyone in the organization.'
+            : '"who" is a GitHub username. Leave it empty for a rule that covers anyone. Sign in to GitHub above to pick from a list instead.'}
       </p>
 
       {settings.clipRules.length === 0 ? (
@@ -139,7 +172,13 @@ export function RulesSection({ settings, clipFileNames, onSettingsSaved, onTestE
       ) : (
         groupClipRulesByPerson(settings.clipRules).map((group) => (
           <div key={group.githubLogin?.toLowerCase() ?? ''} className="settings-page__rule-group">
-            <h3>{group.githubLogin ?? 'anyone'}</h3>
+            <h3>
+              {group.githubLogin ?? 'anyone'}
+              {/* Kept, not deleted: the person may rejoin, or the rule may be for an outside contributor. */}
+              {group.githubLogin && organizationMemberLogins && !isOrganizationMember(group.githubLogin) && (
+                <span className="settings-page__not-member"> (not in organization)</span>
+              )}
+            </h3>
             <ul className="settings-page__list">
               {group.clipRules.map((rule) => (
                 <li key={rule.id}>
